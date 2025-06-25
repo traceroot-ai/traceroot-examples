@@ -49,8 +49,9 @@ class PlanAgent:
         """Process user query and determine if it's coding-related"""
         structured_llm = self.llm.with_structured_output(PlanResponse)
         chain = self.plan_prompt | structured_llm
-        logger.info(f"Plan generation prompt: {self.system_prompt}")
-        logger.info(f"Query being processed: {query}")
+
+        formatted_prompt = self.plan_prompt.format(query=query)
+        logger.info(f"PLAN AGENT prompt:\n{formatted_prompt}")
 
         response = chain.invoke({"query": query})
 

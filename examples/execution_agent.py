@@ -23,7 +23,6 @@ class ExecutionAgent:
         historical_context: str = "",
     ) -> dict[str, Any]:
         """Execute Python code safely and return results"""
-        logger.warning(f"Executing code: {code}")
         try:
             # Create a temporary file for the code
             with tempfile.NamedTemporaryFile(mode='w',
@@ -31,7 +30,8 @@ class ExecutionAgent:
                                              delete=False) as f:
                 f.write(code)
                 temp_file = f.name
-                logger.warning(f"Created temporary file: {temp_file}")
+                logger.warning(f"Created temporary file {temp_file}"
+                               f" for the code:\n{code}")
 
             try:
                 # Execute the code using subprocess for safety
@@ -54,9 +54,9 @@ class ExecutionAgent:
                         f"stdout: {result.stdout} and stderr: {result.stderr}")
 
                 if execution_result["success"]:
-                    logger.info(f"Execution result: {execution_result}")
+                    logger.info(f"Execution result:\n{execution_result}")
                 else:
-                    logger.error(f"Execution failed: {execution_result}")
+                    logger.error(f"Execution failed:\n{execution_result}")
                 return execution_result
 
             except subprocess.TimeoutExpired:
@@ -70,8 +70,8 @@ class ExecutionAgent:
                     "return_code": -1,
                 }
             except Exception as e:
-                message = f"Execution error: {str(e)}"
-                logger.error(f"Execution error: {str(e)}")
+                message = f"Execution error:\n{str(e)}"
+                logger.error(message)
                 return {
                     "success": False,
                     "stdout": "",

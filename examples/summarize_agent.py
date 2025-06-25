@@ -80,7 +80,7 @@ class SummarizeAgent:
             retry_count=retry_count,
             historical_context=formatted_historical_context,
         )
-        logger.info(f"Summarizing prompt: {formatted_prompt}")
+        logger.info(f"SUMMARIZE AGENT prompt:\n{formatted_prompt}")
 
         response = chain.invoke({
             "query":

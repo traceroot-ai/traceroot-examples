@@ -2,17 +2,6 @@ import os
 from typing import Any, TypedDict
 
 import traceroot
-
-traceroot.init(
-    name="traceroot-ai",
-    service_name="multi-agent-demo",
-    aws_region="us-west-2",
-    otlp_endpoint="http://localhost:4318/v1/traces",
-    github_owner="traceroot-ai",
-    github_repo_name="traceroot-examples",
-    github_commit_hash="main",
-)
-
 from code_agent import create_code_agent
 from dotenv import load_dotenv
 from execution_agent import create_execution_agent
@@ -238,9 +227,10 @@ def main():
         return
 
     system = MultiAgentSystem()
-    system.process_query(
-        "Write code to give the 3000000000000000000th digit of pi. Just give me the final number."
-    )
+    query = ("Given an m x n matrix, return all elements of the matrix "
+             "in spiral order, where m = 1000000000 and n = 1000000000.")
+    logger.info(f"Processing query:\n{query}")
+    system.process_query(query)
 
 
 if __name__ == "__main__":

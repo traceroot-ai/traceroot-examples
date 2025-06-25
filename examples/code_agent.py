@@ -45,7 +45,7 @@ class CodeAgent:
     ) -> str:
         formatted_prompt = self.code_prompt.format(
             query=query, plan=plan, historical_context=historical_context)
-        logger.info(f"Code generation prompt: {formatted_prompt}")
+        logger.info(f"CODE AGENT prompt:\n{formatted_prompt}")
 
         chain = self.code_prompt | self.llm
         response = chain.invoke({
