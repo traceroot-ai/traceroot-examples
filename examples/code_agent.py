@@ -67,7 +67,7 @@ class CodeAgent:
             code = code[:-3]
 
         code = code.strip()
-        logger.info(f"Generated code: {code}")
+        logger.info(f"Generated code:\n{code}")
         return code
 
 
