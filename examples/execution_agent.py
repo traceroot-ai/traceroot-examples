@@ -49,10 +49,14 @@ class ExecutionAgent:
                 }
 
                 if result.returncode != 0:
-                    execution_result["error"] = (
-                        f"Process exited with code {result.returncode}")
+                    execution_result["stderr"] = (
+                        f"Process exited with code {result.returncode} with "
+                        f"stdout: {result.stdout} and stderr: {result.stderr}")
 
-                logger.info(f"Execution result: {execution_result}")
+                if execution_result["success"]:
+                    logger.info(f"Execution result: {execution_result}")
+                else:
+                    logger.error(f"Execution failed: {execution_result}")
                 return execution_result
 
             except subprocess.TimeoutExpired:

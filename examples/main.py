@@ -191,6 +191,7 @@ class MultiAgentSystem:
     def should_code(self, state: AgentState) -> str:
         return "code" if state["is_coding"] else "end"
 
+    @traceroot.trace()
     def should_retry(self, state: AgentState) -> str:
         """Determine if we should retry after a failed execution"""
         # Only retry if:
@@ -219,7 +220,7 @@ class MultiAgentSystem:
             "execution_result": {},
             "response": None,
             "retry_count": 0,
-            "max_retries": 5,
+            "max_retries": 2,
             "previous_attempts": []
         }
 
@@ -237,7 +238,9 @@ def main():
         return
 
     system = MultiAgentSystem()
-    system.process_query("Fibonacci number for 100.")
+    system.process_query(
+        "Write code to give the 3000000000000000000th digit of pi. Just give me the final number."
+    )
 
 
 if __name__ == "__main__":
