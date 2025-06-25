@@ -197,6 +197,15 @@ class MultiAgentSystem:
         else:
             return "end"
 
+    def draw_and_save_graph(
+        self,
+        output_path: str = "./examples/multi_agent/multi_agent_graph.png",
+    ) -> None:
+        """Draw the multi-agent workflow graph and save it locally"""
+        mermaid_png = self.graph.get_graph().draw_mermaid_png()
+        with open(output_path, "wb") as f:
+            f.write(mermaid_png)
+
     @traceroot.trace()
     def process_query(self, query: str) -> str:
         """Process a user query through the multi-agent system"""
@@ -227,6 +236,8 @@ def main():
         return
 
     system = MultiAgentSystem()
+    system.draw_and_save_graph()
+
     query = ("Given an m x n matrix, return all elements of the matrix "
              "in spiral order, where m = 1000000000 and n = 1000000000.")
     logger.info(f"Processing query:\n{query}")

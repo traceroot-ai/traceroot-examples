@@ -10,6 +10,6 @@ export OPENAI_API_KEY=your_api_key_here
 # Run
 
 ```bash
-cd ..
-python examples/main.py
+cd ../../
+python examples/multi_agent/main.py
 ```
