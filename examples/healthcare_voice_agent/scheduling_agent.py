@@ -2,7 +2,10 @@ import json
 from datetime import datetime
 from typing import List, Dict, Optional
 
+import traceroot
 from pydantic import BaseModel, Field
+
+logger = traceroot.get_logger()
 
 
 class DoctorRecommendation(BaseModel):
@@ -22,15 +25,20 @@ class SchedulingAgent:
     def __init__(self, doctors_file: str = "examples/healthcare_voice_agent/data/doctors.json"):
         self.doctors_file = doctors_file
         self.doctors_data = self._load_doctors_data()
+        logger.info(f"Scheduling Agent initialized with {len(self.doctors_data['doctors'])} doctors")
 
     def _load_doctors_data(self) -> Dict:
         """Load doctors data from JSON file"""
         try:
             with open(self.doctors_file, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                logger.info(f"Loaded doctors database from: {self.doctors_file}")
+                return data
         except FileNotFoundError:
+            logger.error(f"Doctors database not found at {self.doctors_file}")
             raise Exception(f"Doctors database not found at {self.doctors_file}")
 
+    @traceroot.trace()
     def find_available_doctors(
         self,
         specialty: Optional[str] = None,
@@ -50,6 +58,9 @@ class SchedulingAgent:
         Returns:
             List of recommended doctors with availability
         """
+        logger.info(f"Finding doctors - Specialty: {specialty}, Symptoms: {symptoms}")
+        logger.info(f"Preferred language: {preferred_language}, Preferred days: {preferred_days}")
+        
         recommendations = []
         
         for doctor in self.doctors_data["doctors"]:
@@ -94,7 +105,10 @@ class SchedulingAgent:
                 )
             )
         
-        return sorted(recommendations, key=lambda x: datetime.strptime(x.next_available, "%Y-%m-%d %H:%M"))
+        sorted_recommendations = sorted(recommendations, key=lambda x: datetime.strptime(x.next_available, "%Y-%m-%d %H:%M"))
+        logger.info(f"Found {len(sorted_recommendations)} matching doctors")
+        
+        return sorted_recommendations
 
     def _generate_recommendation_reason(
         self,
@@ -124,6 +138,7 @@ class SchedulingAgent:
             
         return " • ".join(reasons)
 
+    @traceroot.trace()
     def get_doctor_availability(self, doctor_id: str) -> Dict:
         """
         Get detailed availability for a specific doctor
@@ -134,13 +149,16 @@ class SchedulingAgent:
         Returns:
             Dictionary with doctor's availability schedule
         """
+        logger.info(f"Getting availability for doctor ID: {doctor_id}")
         for doctor in self.doctors_data["doctors"]:
             if doctor["id"] == doctor_id:
+                logger.info(f"Found doctor: {doctor['name']}")
                 return {
                     "name": doctor["name"],
                     "availability": doctor["availability"],
                     "next_available": doctor["next_available"]
                 }
+        logger.error(f"Doctor with ID {doctor_id} not found")
         raise ValueError(f"Doctor with ID {doctor_id} not found")
 
 
