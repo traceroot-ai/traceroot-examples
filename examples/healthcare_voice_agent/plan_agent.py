@@ -1,11 +1,14 @@
 from typing import Any, Optional
 
+import traceroot
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 load_dotenv()
+
+logger = traceroot.get_logger()
 
 
 class VoicePlanResponse(BaseModel):
@@ -42,6 +45,7 @@ class VoicePlanAgent:
             ("human", "Patient query transcript: {transcript}\n\nCreate a plan for responding to this healthcare query.")
         ])
 
+    @traceroot.trace()
     def plan_voice_response(self, transcript: str) -> dict[str, Any]:
         """
         Analyze patient transcript and create response plan
@@ -55,7 +59,15 @@ class VoicePlanAgent:
         structured_llm = self.llm.with_structured_output(VoicePlanResponse)
         chain = self.plan_prompt | structured_llm
 
+        formatted_prompt = self.plan_prompt.format(transcript=transcript)
+        logger.info(f"HEALTHCARE PLAN AGENT prompt:\n{formatted_prompt}")
+
         response = chain.invoke({"transcript": transcript})
+
+        logger.info(f"Healthcare planning for transcript: {transcript}")
+        logger.info(f"Generated plan: {response.plan}")
+        logger.info(f"Response type: {response.response_type}")
+        logger.info(f"Suggested tone: {response.tone}")
 
         return {
             "transcript": transcript,

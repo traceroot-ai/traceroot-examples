@@ -2,11 +2,14 @@ import os
 import tempfile
 from typing import Optional
 
+import traceroot
 import speech_recognition as sr
 import soundfile as sf
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = traceroot.get_logger()
 
 
 class STTAgent:
@@ -18,6 +21,7 @@ class STTAgent:
         self.recognizer.energy_threshold = 300
         self.recognizer.dynamic_energy_threshold = True
 
+    @traceroot.trace()
     def transcribe_audio(self, audio_file_path: str) -> dict[str, str]:
         """
         Convert audio file to text using Whisper
@@ -28,9 +32,11 @@ class STTAgent:
         Returns:
             Dict containing transcript and any error messages
         """
+        logger.info(f"Starting STT transcription for: {audio_file_path}")
         try:
             # Convert audio to WAV format if needed
             wav_path = self._ensure_wav_format(audio_file_path)
+            logger.info(f"Audio file prepared for transcription: {wav_path}")
             
             # Load audio file
             with sr.AudioFile(wav_path) as source:
@@ -50,6 +56,7 @@ class STTAgent:
                 if wav_path != audio_file_path:
                     os.unlink(wav_path)
                 
+                logger.info(f"STT transcription successful: {transcript}")
                 return {
                     "success": True,
                     "transcript": transcript,
@@ -58,6 +65,7 @@ class STTAgent:
                 }
                 
             except sr.UnknownValueError:
+                logger.error("STT could not understand audio")
                 return {
                     "success": False,
                     "transcript": "",
@@ -65,6 +73,7 @@ class STTAgent:
                     "error": "Could not understand audio"
                 }
             except sr.RequestError as e:
+                logger.error(f"STT Whisper error: {str(e)}")
                 return {
                     "success": False,
                     "transcript": "",
@@ -73,6 +82,7 @@ class STTAgent:
                 }
                 
         except Exception as e:
+            logger.error(f"STT audio processing error: {str(e)}")
             return {
                 "success": False,
                 "transcript": "",

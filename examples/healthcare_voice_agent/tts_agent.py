@@ -2,11 +2,14 @@ import os
 import tempfile
 from typing import Optional
 
+import traceroot
 import torch
 from dotenv import load_dotenv
 from TTS.api import TTS
 
 load_dotenv()
+
+logger = traceroot.get_logger()
 
 
 class TTSAgent:
@@ -15,20 +18,24 @@ class TTSAgent:
     def __init__(self):
         # Check if CUDA is available
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"TTS Agent initializing with device: {self.device}")
         
         # Initialize TTS with a good multilingual model
         # Using XTTS v2 which is great for voice cloning and multiple languages
         try:
             self.tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(self.device)
+            logger.info("TTS model loaded successfully: XTTS v2")
         except Exception:
             # Fallback to a simpler model if XTTS fails
             self.tts = TTS("tts_models/en/ljspeech/tacotron2-DDC").to(self.device)
+            logger.warning("XTTS failed, using fallback model: Tacotron2-DDC")
 
         # Store available speakers
         self.available_speakers = self.get_available_speakers()
         # Set default speaker if it's a multi-speaker model
         self.default_speaker = self.available_speakers[0] if self.available_speakers else None
 
+    @traceroot.trace()
     def synthesize_speech(
         self, 
         text: str, 
@@ -48,6 +55,10 @@ class TTSAgent:
         Returns:
             Dict containing success status and any error messages
         """
+        logger.info(f"Starting TTS synthesis for text: {text[:100]}...")
+        logger.info(f"Output path: {output_path}")
+        logger.info(f"Language: {language}")
+        
         try:
             # Ensure output directory exists
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -59,6 +70,7 @@ class TTSAgent:
             
             # Generate speech
             if speaker_wav and os.path.exists(speaker_wav):
+                logger.info(f"Using voice cloning with speaker: {speaker_wav}")
                 # Voice cloning mode
                 try:
                     self.tts.tts_to_file(
@@ -69,7 +81,7 @@ class TTSAgent:
                     )
                 except Exception as e:
                     # If voice cloning fails, fall back to default voice
-                    print(f"Voice cloning failed, using default voice: {e}")
+                    logger.warning(f"Voice cloning failed, using default voice: {e}")
                     if self.default_speaker:
                         self.tts.tts_to_file(
                             text=text,
@@ -80,6 +92,7 @@ class TTSAgent:
                     else:
                         self.tts.tts_to_file(text=text, file_path=output_path)
             else:
+                logger.info("Using default voice for TTS synthesis")
                 # Default voice mode
                 if self.default_speaker:
                     self.tts.tts_to_file(
@@ -91,6 +104,7 @@ class TTSAgent:
                 else:
                     self.tts.tts_to_file(text=text, file_path=output_path)
             
+            logger.info(f"TTS synthesis completed successfully: {output_path}")
             return {
                 "success": True,
                 "output_path": output_path,
@@ -98,12 +112,14 @@ class TTSAgent:
             }
             
         except Exception as e:
+            logger.error(f"TTS synthesis error: {str(e)}")
             return {
                 "success": False,
                 "output_path": None,
                 "error": f"TTS synthesis error: {str(e)}"
             }
 
+    @traceroot.trace()
     def synthesize_to_memory(
         self, 
         text: str,
@@ -121,9 +137,11 @@ class TTSAgent:
         Returns:
             Dict containing audio data and metadata
         """
+        logger.info(f"Starting TTS synthesis to memory for text: {text[:100]}...")
         try:
             # Generate speech to memory
             if speaker_wav and os.path.exists(speaker_wav):
+                logger.info(f"Using voice cloning with speaker: {speaker_wav}")
                 # Voice cloning mode
                 try:
                     wav_data = self.tts.tts(
@@ -133,12 +151,14 @@ class TTSAgent:
                     )
                 except Exception as e:
                     # If voice cloning fails, fall back to default voice
-                    print(f"Voice cloning failed, using default voice: {e}")
+                    logger.warning(f"Voice cloning failed, using default voice: {e}")
                     wav_data = self.tts.tts(text=text)
             else:
+                logger.info("Using default voice for TTS synthesis")
                 # Default voice mode
                 wav_data = self.tts.tts(text=text)
             
+            logger.info("TTS synthesis to memory completed successfully")
             return {
                 "success": True,
                 "audio_data": wav_data,
@@ -147,6 +167,7 @@ class TTSAgent:
             }
             
         except Exception as e:
+            logger.error(f"TTS synthesis error: {str(e)}")
             return {
                 "success": False,
                 "audio_data": None,

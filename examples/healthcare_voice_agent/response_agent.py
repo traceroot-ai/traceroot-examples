@@ -1,10 +1,13 @@
 from typing import List, Dict, Optional
 
+import traceroot
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 load_dotenv()
+
+logger = traceroot.get_logger()
 
 
 class VoiceResponseAgent:
@@ -45,6 +48,7 @@ class VoiceResponseAgent:
             ))
         ])
 
+    @traceroot.trace()
     def generate_response(
         self,
         transcript: str,
@@ -71,6 +75,15 @@ class VoiceResponseAgent:
         # Format doctor recommendations for the prompt
         doctor_text = self._format_doctor_recommendations(doctor_recommendations)
         
+        formatted_prompt = self.response_prompt.format(
+            transcript=transcript,
+            plan=plan,
+            response_type=response_type,
+            tone=tone,
+            doctor_recommendations=doctor_text
+        )
+        logger.info(f"HEALTHCARE RESPONSE AGENT prompt:\n{formatted_prompt}")
+        
         response = chain.invoke({
             "transcript": transcript,
             "plan": plan,
@@ -82,6 +95,10 @@ class VoiceResponseAgent:
         # Clean up the response for voice synthesis
         text_response = response.content.strip()
         text_response = self._clean_for_voice(text_response)
+        
+        logger.info(f"Healthcare response generated for transcript: {transcript}")
+        logger.info(f"Response type: {response_type}, Tone: {tone}")
+        logger.info(f"Generated response preview: {text_response[:200]}...")
         
         return text_response
 
