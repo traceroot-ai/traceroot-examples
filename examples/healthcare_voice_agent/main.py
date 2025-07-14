@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, TypedDict
 import traceroot
 from dotenv import load_dotenv
 from langgraph.graph import END, StateGraph
+from traceroot.tracer import TraceOptions, trace
 
 from plan_agent import create_voice_plan_agent
 from response_agent import create_voice_response_agent
@@ -52,33 +53,33 @@ class VoiceAgentSystem:
         """Build the enhanced voice processing workflow graph"""
         workflow = StateGraph(VoiceAgentState)
 
-        # Add nodes with descriptive names
-        workflow.add_node("STT (Speech-to-Text)", self.transcribe_node)
+        # Add nodes with simple Mermaid-compatible names (no spaces, no special chars)
+        workflow.add_node("SpeechToText", self.transcribe_node)
         workflow.add_node("Planning", self.plan_node)
-        workflow.add_node("Doctor Search", self.doctor_search_node)
+        workflow.add_node("DoctorSearch", self.doctor_search_node)
         workflow.add_node("Response", self.response_node)
-        workflow.add_node("TTS (Text-to-Speech)", self.tts_node)
+        workflow.add_node("TextToSpeech", self.tts_node)
         workflow.add_node("Final", self.final_node)
 
-        # Add edges
-        workflow.set_entry_point("STT (Speech-to-Text)")
+        # Add edges with simplified names
+        workflow.set_entry_point("SpeechToText")
         workflow.add_conditional_edges(
-            "STT (Speech-to-Text)",
+            "SpeechToText",
             self.should_continue_after_stt,
             {
                 "continue": "Planning",
                 "end": "Final"
             }
         )
-        workflow.add_edge("Planning", "Doctor Search")
-        workflow.add_edge("Doctor Search", "Response")
-        workflow.add_edge("Response", "TTS (Text-to-Speech)")
-        workflow.add_edge("TTS (Text-to-Speech)", "Final")
+        workflow.add_edge("Planning", "DoctorSearch")
+        workflow.add_edge("DoctorSearch", "Response")
+        workflow.add_edge("Response", "TextToSpeech")
+        workflow.add_edge("TextToSpeech", "Final")
         workflow.add_edge("Final", END)
 
         return workflow.compile()
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def transcribe_node(self, state: VoiceAgentState) -> Dict[str, Any]:
         """Process audio input to text"""
         logger.info("\n🎤 Starting Speech-to-Text processing...")
@@ -92,7 +93,7 @@ class VoiceAgentSystem:
             logger.error(f"❌ STT failed: {str(e)}")
             return {"error": f"STT failed: {str(e)}"}
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def plan_node(self, state: VoiceAgentState) -> Dict[str, Any]:
         """Create healthcare response plan"""
         logger.info("\n🧠 Starting response planning...")
@@ -105,7 +106,7 @@ class VoiceAgentSystem:
             logger.error(f"❌ Planning failed: {str(e)}")
             return {"error": f"Planning failed: {str(e)}"}
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def doctor_search_node(self, state: VoiceAgentState) -> Dict[str, Any]:
         """Search for appropriate doctors based on patient needs"""
         logger.info("\n👨‍⚕️ Starting doctor search...")
@@ -128,7 +129,7 @@ class VoiceAgentSystem:
             
             logger.info(f"✅ Found {len(doctor_recs)} doctor recommendations")
             for i, doc in enumerate(doctor_recs, 1):
-                logger.info(f"   {i}. Dr. {doc['name']} - {doc['specialty']}")
+                logger.info(f"   {i}. {doc['name']} - {doc['specialty']}")
             
             return {
                 "doctor_recommendations": doctor_recs
@@ -137,7 +138,7 @@ class VoiceAgentSystem:
             logger.error(f"❌ Doctor search failed: {str(e)}")
             return {"error": f"Doctor search failed: {str(e)}"}
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def response_node(self, state: VoiceAgentState) -> Dict[str, Any]:
         """Generate enhanced response with doctor recommendations"""
         logger.info("\n💬 Starting response generation...")
@@ -156,7 +157,7 @@ class VoiceAgentSystem:
             logger.error(f"❌ Response generation failed: {str(e)}")
             return {"error": f"Response generation failed: {str(e)}"}
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def tts_node(self, state: VoiceAgentState) -> Dict[str, Any]:
         """Convert response to speech"""
         logger.info("\n🔊 Starting Text-to-Speech synthesis...")
@@ -240,7 +241,7 @@ class VoiceAgentSystem:
         
         return None
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def process_voice_query(self, input_path: str) -> str:
         """Process voice query and return path to response audio"""
         logger.info(f"Processing voice query from: {input_path}")
@@ -270,9 +271,16 @@ class VoiceAgentSystem:
     ) -> None:
         """Draw the voice agent workflow graph and save it locally"""
         try:
+            # Try to render the PNG
             mermaid_png = self.graph.get_graph().draw_mermaid_png()
+            # if the above fails, try this:
+            # from langchain_core.runnables.graph import MermaidDrawMethod
+            # mermaid_png = self.graph.get_graph().draw_mermaid_png(
+            #   draw_method=MermaidDrawMethod.PYPPETEER)
             with open(output_path, "wb") as f:
                 f.write(mermaid_png)
+            logger.info(f"✅ Workflow graph saved as PNG to: {output_path}")
+                
         except Exception as e:
             logger.error(f"❌ Could not save workflow graph: {str(e)}")
             logger.info("This is likely due to network connectivity issues with the Mermaid API.")

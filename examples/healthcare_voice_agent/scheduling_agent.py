@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 
 import traceroot
 from pydantic import BaseModel, Field
+from traceroot.tracer import TraceOptions, trace
 
 logger = traceroot.get_logger()
 
@@ -38,7 +39,7 @@ class SchedulingAgent:
             logger.error(f"Doctors database not found at {self.doctors_file}")
             raise Exception(f"Doctors database not found at {self.doctors_file}")
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def find_available_doctors(
         self,
         specialty: Optional[str] = None,
@@ -138,7 +139,7 @@ class SchedulingAgent:
             
         return " • ".join(reasons)
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def get_doctor_availability(self, doctor_id: str) -> Dict:
         """
         Get detailed availability for a specific doctor
