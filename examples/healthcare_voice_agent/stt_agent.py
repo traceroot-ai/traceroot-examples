@@ -6,6 +6,7 @@ import traceroot
 import speech_recognition as sr
 import soundfile as sf
 from dotenv import load_dotenv
+from traceroot.tracer import TraceOptions, trace
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ class STTAgent:
         self.recognizer.energy_threshold = 300
         self.recognizer.dynamic_energy_threshold = True
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def transcribe_audio(self, audio_file_path: str) -> dict[str, str]:
         """
         Convert audio file to text using Whisper

@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
+from traceroot.tracer import TraceOptions, trace
 
 load_dotenv()
 
@@ -45,7 +46,7 @@ class VoicePlanAgent:
             ("human", "Patient query transcript: {transcript}\n\nCreate a plan for responding to this healthcare query.")
         ])
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def plan_voice_response(self, transcript: str) -> dict[str, Any]:
         """
         Analyze patient transcript and create response plan

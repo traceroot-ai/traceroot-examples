@@ -6,6 +6,7 @@ import traceroot
 import torch
 from dotenv import load_dotenv
 from TTS.api import TTS
+from traceroot.tracer import TraceOptions, trace
 
 load_dotenv()
 
@@ -35,7 +36,7 @@ class TTSAgent:
         # Set default speaker if it's a multi-speaker model
         self.default_speaker = self.available_speakers[0] if self.available_speakers else None
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def synthesize_speech(
         self, 
         text: str, 
@@ -119,7 +120,7 @@ class TTSAgent:
                 "error": f"TTS synthesis error: {str(e)}"
             }
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def synthesize_to_memory(
         self, 
         text: str,

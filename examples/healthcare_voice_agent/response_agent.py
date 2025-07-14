@@ -4,6 +4,7 @@ import traceroot
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from traceroot.tracer import TraceOptions, trace
 
 load_dotenv()
 
@@ -15,6 +16,8 @@ class VoiceResponseAgent:
 
     def __init__(self):
         self.llm = ChatOpenAI(model="gpt-4", temperature=0.7)
+        # Maximum words for roughly 30 seconds of speech (assuming 150-200 words per minute)
+        self.max_words = 85
         self.system_prompt = (
             "You are a healthcare voice response agent. "
             "Your job is to create clear, empathetic, and informative responses "
@@ -33,6 +36,7 @@ class VoiceResponseAgent:
             "11. Maintain HIPAA compliance in all responses "
             "12. For urgent symptoms, emphasize the importance of immediate care "
             "13. When recommending doctors, present their qualifications naturally "
+            f"14. CRITICAL: Keep your response to MAXIMUM {self.max_words} words for a 30-second audio output "
             "Your response will be read aloud to potentially anxious patients."
         )
         self.response_prompt = ChatPromptTemplate.from_messages([
@@ -43,12 +47,13 @@ class VoiceResponseAgent:
                 "Response type: {response_type}\n"
                 "Desired tone: {tone}\n"
                 "Available doctors: {doctor_recommendations}\n\n"
-                "Generate a natural, healthcare-focused voice response that addresses "
-                "the patient's query and includes appropriate doctor recommendations."
+                f"Generate a natural, healthcare-focused voice response that addresses "
+                f"the patient's query and includes appropriate doctor recommendations. "
+                f"IMPORTANT: Keep response under {self.max_words} words for 30-second audio."
             ))
         ])
 
-    @traceroot.trace()
+    @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def generate_response(
         self,
         transcript: str,
@@ -98,6 +103,7 @@ class VoiceResponseAgent:
         
         logger.info(f"Healthcare response generated for transcript: {transcript}")
         logger.info(f"Response type: {response_type}, Tone: {tone}")
+        logger.info(f"Final word count: {len(text_response.split())} words")
         logger.info(f"Generated response preview: {text_response[:200]}...")
         
         return text_response
