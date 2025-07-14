@@ -199,7 +199,7 @@ class MultiAgentSystem:
 
     def draw_and_save_graph(
         self,
-        output_path: str = "./examples/multi_agent/multi_agent_graph.png",
+        output_path: str = "./examples/multi_code_agent/multi_agent_graph.png",
     ) -> None:
         """Draw the multi-agent workflow graph and save it locally"""
         mermaid_png = self.graph.get_graph().draw_mermaid_png()
