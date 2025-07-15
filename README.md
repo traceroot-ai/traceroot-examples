@@ -1,6 +1,6 @@
 # TraceRoot Examples
 
-This repository contains example implementations and use cases for TraceRoot.AI. Here is our official [website](https://traceroot.ai/)
+This repository contains example implementations and use cases for TraceRoot.AI. Here is our official [website](https://traceroot.ai/).
 
 ## Documentation
 
