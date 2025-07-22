@@ -11,5 +11,5 @@ export OPENAI_API_KEY=your_api_key_here
 
 ```bash
 cd ../../
-python examples/multi_agent/main.py
+python examples/multi_code_agent/main.py
 ```
