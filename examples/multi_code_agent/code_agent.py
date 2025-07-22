@@ -57,17 +57,21 @@ class CodeAgent:
         # Clean up the response to extract just the code
         code = response.content.strip()
 
-        # Remove markdown code blocks if present
+        # Remove markdown code block fences, if present
         if code.startswith("```python"):
             code = code[9:]
         elif code.startswith("```"):
             code = code[3:]
-
         if code.endswith("```"):
             code = code[:-3]
-
         code = code.strip()
-        logger.info(f"Generated code:\n{code}")
+
+        # Additional removal of any remaining fence lines
+        lines = code.splitlines()
+        filtered = [l for l in lines if not l.strip().startswith("```")]
+        code = "\n".join(filtered)
+
+        logger.info(f"Generated code cleaned of fences:\n{code}")
         return code
 
 
