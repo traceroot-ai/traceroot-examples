@@ -8,7 +8,6 @@ import traceroot
 
 logger = traceroot.get_logger()
 
-
 class ExecutionAgent:
 
     def __init__(self):
@@ -23,6 +22,17 @@ class ExecutionAgent:
         historical_context: str = "",
     ) -> dict[str, Any]:
         """Execute Python code safely and return results"""
+        # Sanitize code: remove markdown fences if present
+        if code.strip().startswith("```"):
+            lines = code.splitlines()
+            # Remove starting fence
+            if lines and lines[0].startswith("```"):
+                lines = lines[1:]
+            # Remove ending fence
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            code = "\n".join(lines)
+
         try:
             # Create a temporary file for the code
             with tempfile.NamedTemporaryFile(mode='w',
@@ -94,7 +104,6 @@ class ExecutionAgent:
                 "stderr": message,
                 "return_code": -1,
             }
-
 
 def create_execution_agent():
     return ExecutionAgent()
