@@ -56,8 +56,7 @@ class ExecutionAgent:
                 if execution_result["success"]:
                     logger.info(f"Execution result:\n{execution_result}")
                 else:
-                    logger.error(f"Execution failed:\n{execution_result}")
-                return execution_result
+                    return execution_result
 
             except subprocess.TimeoutExpired:
                 message = (f"Code execution timed out after "
