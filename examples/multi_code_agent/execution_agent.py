@@ -30,8 +30,7 @@ class ExecutionAgent:
                                              delete=False) as f:
                 f.write(code)
                 temp_file = f.name
-                logger.warning(f"Created temporary file {temp_file}"
-                               f" for the code:\n{code}")
+                logger.warning(f"Created temporary file {temp_file}" for the code:\n{code}")
 
             try:
                 # Execute the code using subprocess for safety
