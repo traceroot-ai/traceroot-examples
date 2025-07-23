@@ -5,6 +5,7 @@ import tempfile
 from typing import Any
 
 import traceroot
+import re
 
 logger = traceroot.get_logger()
 
@@ -28,10 +29,14 @@ class ExecutionAgent:
             with tempfile.NamedTemporaryFile(mode='w',
                                              suffix='.py',
                                              delete=False) as f:
-                f.write(code)
+                # Extract python code from markdown fences if present
+                match = re.search(r'```(?:python)?\n(.+?)```', code, flags=re.DOTALL)
+                code_to_write = match.group(1) if match else code
+
+                f.write(code_to_write)
                 temp_file = f.name
                 logger.warning(f"Created temporary file {temp_file}"
-                               f" for the code:\n{code}")
+                               f" for the code:\n{code_to_write}")
 
             try:
                 # Execute the code using subprocess for safety
@@ -57,6 +62,7 @@ class ExecutionAgent:
                     logger.info(f"Execution result:\n{execution_result}")
                 else:
                     logger.error(f"Execution failed:\n{execution_result}")
+
                 return execution_result
 
             except subprocess.TimeoutExpired:
