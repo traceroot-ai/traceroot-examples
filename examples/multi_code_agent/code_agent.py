@@ -45,7 +45,6 @@ class CodeAgent:
     ) -> str:
         formatted_prompt = self.code_prompt.format(
             query=query, plan=plan, historical_context=historical_context)
-        logger.info(f"CODE AGENT prompt:\n{formatted_prompt}")
 
         chain = self.code_prompt | self.llm
         response = chain.invoke({
@@ -66,7 +65,14 @@ class CodeAgent:
         if code.endswith("```"):
             code = code[:-3]
 
+        # Strip any stray whitespace
         code = code.strip()
+
+        # NEW: Remove any remaining markdown code fence lines
+        code_lines = code.splitlines()
+        code_lines = [line for line in code_lines if not line.strip().startswith("```")]
+        code = "\n".join(code_lines)
+
         logger.info(f"Generated code:\n{code}")
         return code
 
