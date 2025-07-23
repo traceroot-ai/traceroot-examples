@@ -67,6 +67,12 @@ class CodeAgent:
             code = code[:-3]
 
         code = code.strip()
+
+        # Remove any explanation lines containing backticks to avoid syntax errors
+        lines = code.splitlines()
+        filtered_lines = [line for line in lines if "`" not in line]
+        code = "\n".join(filtered_lines).strip()
+
         logger.info(f"Generated code:\n{code}")
         return code
 
