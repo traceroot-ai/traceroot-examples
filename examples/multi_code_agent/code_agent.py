@@ -1,3 +1,4 @@
+import re  # added to handle removal of markdown fences
 import traceroot
 from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
@@ -57,14 +58,8 @@ class CodeAgent:
         # Clean up the response to extract just the code
         code = response.content.strip()
 
-        # Remove markdown code blocks if present
-        if code.startswith("```python"):
-            code = code[9:]
-        elif code.startswith("```"):
-            code = code[3:]
-
-        if code.endswith("```"):
-            code = code[:-3]
+        # Remove all markdown code fences anywhere in the response
+        code = re.sub(r"```(?:python)?", "", code)
 
         code = code.strip()
         logger.info(f"Generated code:\n{code}")
