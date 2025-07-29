@@ -31,8 +31,8 @@ class CodeAgent:
             "that solves the problem.")
         self.code_prompt = ChatPromptTemplate.from_messages([
             ("system", self.system_prompt),
-            ("human", ("{query}\n\nPlan: {plan}\n\n"
-                       "Historical context: {historical_context}\n\n"
+            ("human", ("{query}\n\nPlan: {plan}\n\n"  
+                       "Historical context: {historical_context}\n\n"  
                        "Please write Python code to implement this."))
         ])
 
@@ -57,16 +57,17 @@ class CodeAgent:
         # Clean up the response to extract just the code
         code = response.content.strip()
 
-        # Remove markdown code blocks if present
+        # Remove Markdown code fences if present
         if code.startswith("```python"):
-            code = code[9:]
+            code = code[len("```python"):]
         elif code.startswith("```"):
-            code = code[3:]
+            code = code[len("```"):]
 
         if code.endswith("```"):
-            code = code[:-3]
+            code = code[:-len("```")]
 
         code = code.strip()
+
         logger.info(f"Generated code:\n{code}")
         return code
 
