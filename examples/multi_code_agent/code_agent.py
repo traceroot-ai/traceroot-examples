@@ -66,7 +66,14 @@ class CodeAgent:
         if code.endswith("```"):
             code = code[:-3]
 
+        # Strip surrounding whitespace
         code = code.strip()
+
+        # Remove any remaining markdown fence markers
+        lines = code.splitlines()
+        lines = [line for line in lines if not line.strip().startswith("```")]
+        code = "\n".join(lines)
+
         logger.info(f"Generated code:\n{code}")
         return code
 
