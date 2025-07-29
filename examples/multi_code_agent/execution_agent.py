@@ -30,8 +30,9 @@ class ExecutionAgent:
                                              delete=False) as f:
                 f.write(code)
                 temp_file = f.name
-                logger.warning(f"Created temporary file {temp_file}"
-                               f" for the code:\n{code}")
+                logger.debug(f"Created temporary file {temp_file} for code execution")
+                logger.info("Executing code for query: %s, plan: %s", query, plan)
+                logger.debug("Code snippet:\n%s", code)
 
             try:
                 # Execute the code using subprocess for safety
@@ -49,29 +50,28 @@ class ExecutionAgent:
                 }
 
                 if result.returncode != 0:
-                    execution_result["stderr"] = (
-                        f"Process exited with code {result.returncode} with "
-                        f"stdout: {result.stdout} and stderr: {result.stderr}")
-
-                if execution_result["success"]:
-                    logger.info(f"Execution result:\n{execution_result}")
+                    logger.error("Code execution failed with return code %d", result.returncode)
+                    logger.error("stdout: %s", result.stdout)
+                    logger.error("stderr: %s", result.stderr)
+                    # Include code snippet for debugging
+                    logger.debug("Failed code snippet:\n%s", code)
                 else:
-                    logger.error(f"Execution failed:\n{execution_result}")
+                    logger.info("Execution succeeded with stdout: %s", result.stdout)
+
                 return execution_result
 
-            except subprocess.TimeoutExpired:
-                message = (f"Code execution timed out after "
-                           f"{self.timeout} seconds")
-                logger.error(message)
+            except subprocess.TimeoutExpired as e:
+                message = f"Code execution timed out after {self.timeout} seconds"
+                logger.error(message + ". Code snippet:\n%s", code)
                 return {
                     "success": False,
-                    "stdout": message,
+                    "stdout": "",
                     "stderr": message,
                     "return_code": -1,
                 }
             except Exception as e:
-                message = f"Execution error:\n{str(e)}"
-                logger.error(message)
+                message = f"Execution error: {str(e)}"
+                logger.exception("Unexpected error during code execution for query: %s", query)
                 return {
                     "success": False,
                     "stdout": "",
@@ -87,7 +87,7 @@ class ExecutionAgent:
 
         except Exception as e:
             message = f"Failed to create temporary file: {str(e)}"
-            logger.error(message)
+            logger.exception(message)
             return {
                 "success": False,
                 "stdout": "",
