@@ -5,13 +5,26 @@ import traceroot
 from code_agent import create_code_agent
 from dotenv import load_dotenv
 from execution_agent import create_execution_agent
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from langgraph.graph import END, StateGraph
 from plan_agent import create_plan_agent
+from pydantic import BaseModel
 from summarize_agent import create_summarize_agent
+from traceroot.integrations.fastapi import connect_fastapi
 
 load_dotenv()
 
 logger = traceroot.get_logger()
+
+
+class QueryRequest(BaseModel):
+    query: str
+
+
+class QueryResponse(BaseModel):
+    status: str
+    response: str
 
 
 class AgentState(TypedDict):
@@ -228,6 +241,31 @@ class MultiAgentSystem:
         return response
 
 
+# FastAPI app setup
+app = FastAPI()
+connect_fastapi(app)
+
+# Global system instance
+# system = None
+system = MultiAgentSystem()
+system.draw_and_save_graph()
+
+
+@app.post("/process", response_model=QueryResponse)
+@traceroot.trace()
+async def process_endpoint(request: QueryRequest):
+    """Process a coding query through the multi-agent system"""
+    if system is None:
+        return QueryResponse(status="error", response="System not initialized")
+    
+    try:
+        response = system.process_query(request.query)
+        return QueryResponse(status="success", response=response)
+    except Exception as e:
+        logger.error(f"Error processing query: {str(e)}")
+        return QueryResponse(status="error", response=str(e))
+
+
 def main():
     if not os.getenv("OPENAI_API_KEY"):
         print("Please set your OPENAI_API_KEY environment variable")
@@ -235,13 +273,13 @@ def main():
               "OPENAI_API_KEY=your_api_key_here")
         return
 
-    system = MultiAgentSystem()
-    system.draw_and_save_graph()
-
+    # Test the FastAPI endpoint (tracing will be triggered here)
+    client = TestClient(app=app)
     query = ("Given an m x n matrix, return all elements of the matrix "
              "in spiral order, where m = 1000000000 and n = 1000000000.")
-    logger.info(f"Processing query:\n{query}")
-    system.process_query(query)
+    response = client.post("/process", json={"query": query})
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
 
 
 if __name__ == "__main__":
