@@ -246,7 +246,6 @@ app = FastAPI()
 connect_fastapi(app)
 
 # Global system instance
-# system = None
 system = MultiAgentSystem()
 system.draw_and_save_graph()
 
