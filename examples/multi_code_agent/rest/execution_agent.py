@@ -1,16 +1,24 @@
 import logging
 import os
+import re
 from tempfile import NamedTemporaryFile
 
 logger = logging.getLogger(__name__)
+
 
 def execute_code(code_str: str, namespace: dict):
     """
     Execute dynamically generated code within the given namespace.
     Syntax errors are caught at compile time for clearer debugging.
     """
+    # Sanitize code: remove Markdown fences to avoid syntax errors
+    lines = code_str.splitlines()
+    filtered = [line for line in lines if not line.strip().startswith("```")]
+    clean_code = "\n".join(filtered)
+
+    # Write sanitized code to a temporary file
     with NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
-        temp_file.write(code_str.encode('utf-8'))
+        temp_file.write(clean_code.encode('utf-8'))
         temp_file_name = temp_file.name
 
     try:
