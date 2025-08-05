@@ -11,9 +11,12 @@ def execute_code(code_str: str, namespace: dict):
     Execute dynamically generated code within the given namespace.
     Syntax errors are caught at compile time for clearer debugging.
     """
-    # Sanitize code: remove Markdown fences to avoid syntax errors
+    # Sanitize code: remove Markdown fences and lines with backticks to avoid syntax errors
     lines = code_str.splitlines()
-    filtered = [line for line in lines if not line.strip().startswith("```")]
+    filtered = [
+        line for line in lines
+        if not line.strip().startswith("```") and "`" not in line
+    ]
     clean_code = "\n".join(filtered)
 
     # Write sanitized code to a temporary file
