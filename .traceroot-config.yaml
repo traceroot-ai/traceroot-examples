@@ -1,5 +1,5 @@
-token: "traceroot-********************************"
-service_name: "multi-agent-demo"
+local_mode: true
+service_name: "example"
 github_owner: "traceroot-ai"
 github_repo_name: "traceroot-examples"
 github_commit_hash: "main"

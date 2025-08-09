@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 import traceroot
 from dotenv import load_dotenv
@@ -14,9 +14,16 @@ logger = traceroot.get_logger()
 
 class VoicePlanResponse(BaseModel):
     """Structured response model for the healthcare voice planning agent"""
-    plan: str = Field(description="Detailed plan for responding to the patient query")
-    response_type: str = Field(description="Type of response needed: 'health_info', 'symptom_guidance', 'urgent_care_advisory', 'wellness_advice'")
-    tone: str = Field(description="Suggested tone for the response: 'professional_caring', 'empathetic_informative', 'calm_reassuring'")
+    plan: str = Field(
+        description="Detailed plan for responding to the patient query")
+    response_type: str = Field(
+        description=
+        "Type of response needed: 'health_info', 'symptom_guidance', 'urgent_care_advisory', 'wellness_advice'"
+    )
+    tone: str = Field(
+        description=
+        "Suggested tone for the response: 'professional_caring', 'empathetic_informative', 'calm_reassuring'"
+    )
 
 
 class VoicePlanAgent:
@@ -42,18 +49,20 @@ class VoicePlanAgent:
             "Remember this will be spoken to a patient seeking health guidance."
         )
         self.plan_prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system_prompt), 
-            ("human", "Patient query transcript: {transcript}\n\nCreate a plan for responding to this healthcare query.")
+            ("system", self.system_prompt),
+            ("human",
+             "Patient query transcript: {transcript}\n\nCreate a plan for responding to this healthcare query."
+             )
         ])
 
     @trace(TraceOptions(trace_params=True, trace_return_value=True))
     def plan_voice_response(self, transcript: str) -> dict[str, Any]:
         """
         Analyze patient transcript and create response plan
-        
+
         Args:
             transcript: The transcribed text from patient input
-            
+
         Returns:
             Dict containing plan details for healthcare response generation
         """
@@ -79,4 +88,4 @@ class VoicePlanAgent:
 
 
 def create_voice_plan_agent():
-    return VoicePlanAgent() 
+    return VoicePlanAgent()

@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 from tempfile import NamedTemporaryFile
 
 logger = logging.getLogger(__name__)
@@ -26,14 +25,15 @@ def execute_code(code_str: str, namespace: dict):
 
     try:
         # Read back the code for execution
-        with open(temp_file_name, 'r') as f:
+        with open(temp_file_name) as f:
             code = f.read()
 
         # Compile first to catch syntax errors
         try:
             compiled_code = compile(code, temp_file_name, 'exec')
         except SyntaxError as se:
-            logger.error(f"Syntax error in generated code at {temp_file_name}: {se}")
+            logger.error(
+                f"Syntax error in generated code at {temp_file_name}: {se}")
             raise
 
         # Execute the compiled code
