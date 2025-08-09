@@ -16,7 +16,7 @@ def logging_function_2():
 def logging_function():
     logger.info("This is an info message")
     logger.warning("This is a warning message")
-    logger.error("This is an error message")
+    logger.error("This is an error message 1")
     logging_function_2()
 
 
