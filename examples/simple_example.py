@@ -1,32 +1,28 @@
-import time
+import logging
+from traceroot import trace
 
-import traceroot
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-logger = traceroot.get_logger()
-
-
-@traceroot.trace()
+@trace()
 def logging_function_2():
     logger.info("This is an info message 2")
     logger.warning("This is a warning message 2")
-    logger.error("This is an error message 2")
+-   logger.error("This is an error message 2")
++   logger.error("This is an error message 2", exc_info=True)
 
+@trace()
 
-@traceroot.trace()
 def logging_function():
     logger.info("This is an info message")
     logger.warning("This is a warning message")
-    logger.error("This is an error message")
+-   logger.error("This is an error message")
++   logger.error("This is an error message", exc_info=True)
     logging_function_2()
 
-
-@traceroot.trace()
+@trace()
 def main():
-    logger.debug("Main function started")
-    time.sleep(1)
     logging_function()
-    logger.debug("Main function completed")
-
 
 if __name__ == "__main__":
     main()
