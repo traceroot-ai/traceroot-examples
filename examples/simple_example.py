@@ -1,8 +1,11 @@
 import time
 
 import traceroot
+import logging
 
 logger = traceroot.get_logger()
+# Ensure all log levels are captured in the example output
+logger.setLevel(logging.DEBUG)
 
 
 @traceroot.trace()
