@@ -1,5 +1,5 @@
-local_mode: true
-service_name: "example"
-github_owner: "traceroot-ai"
-github_repo_name: "traceroot-examples"
-github_commit_hash: "main"
+token: 'traceroot-5724dd0ee3574060b7d0f3730694f44*'
+service_name: 'example'
+github_owner: 'traceroot-ai'
+github_repo_name: 'traceroot-examples'
+github_commit_hash: 'main'
