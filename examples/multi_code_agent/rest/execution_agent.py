@@ -1,49 +1,100 @@
-import logging
 import os
-from tempfile import NamedTemporaryFile
+import subprocess
+import sys
+import tempfile
+from typing import Any
 
-logger = logging.getLogger(__name__)
+import traceroot
+
+logger = traceroot.get_logger()
 
 
-def execute_code(code_str: str, namespace: dict):
-    """
-    Execute dynamically generated code within the given namespace.
-    Syntax errors are caught at compile time for clearer debugging.
-    """
-    # Sanitize code: remove Markdown fences and lines with backticks to avoid syntax errors
-    lines = code_str.splitlines()
-    filtered = [
-        line for line in lines
-        if not line.strip().startswith("```") and "`" not in line
-    ]
-    clean_code = "\n".join(filtered)
+class ExecutionAgent:
 
-    # Write sanitized code to a temporary file
-    with NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
-        temp_file.write(clean_code.encode('utf-8'))
-        temp_file_name = temp_file.name
+    def __init__(self):
+        self.timeout = 30  # 30 seconds timeout
 
-    try:
-        # Read back the code for execution
-        with open(temp_file_name) as f:
-            code = f.read()
-
-        # Compile first to catch syntax errors
+    @traceroot.trace()
+    def execute_code(
+        self,
+        query: str,
+        plan: str,
+        code: str,
+        historical_context: str = "",
+    ) -> dict[str, Any]:
+        """Execute Python code safely and return results"""
         try:
-            compiled_code = compile(code, temp_file_name, 'exec')
-        except SyntaxError as se:
-            logger.error(
-                f"Syntax error in generated code at {temp_file_name}: {se}")
-            raise
+            # Create a temporary file for the code
+            with tempfile.NamedTemporaryFile(mode='w',
+                                             suffix='.py',
+                                             delete=False) as f:
+                f.write(code)
+                temp_file = f.name
+                logger.warning(f"Created temporary file {temp_file}"
+                               f" for the code:\n{code}")
 
-        # Execute the compiled code
-        exec(compiled_code, namespace)
+            try:
+                # Execute the code using subprocess for safety
+                result = subprocess.run([sys.executable, temp_file],
+                                        capture_output=True,
+                                        text=True,
+                                        timeout=self.timeout,
+                                        cwd=os.path.dirname(temp_file))
 
-    except Exception as e:
-        logger.error(f"Error executing code: {e}")
-        raise
+                execution_result = {
+                    "success": result.returncode == 0,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "return_code": result.returncode,
+                }
 
-    finally:
-        # Cleanup temp file
-        if os.path.exists(temp_file_name):
-            os.unlink(temp_file_name)
+                if result.returncode != 0:
+                    execution_result["stderr"] = (
+                        f"Process exited with code {result.returncode} with "
+                        f"stdout: {result.stdout} and stderr: {result.stderr}")
+
+                if execution_result["success"]:
+                    logger.info(f"Execution result:\n{execution_result}")
+                else:
+                    logger.error(f"Execution failed:\n{execution_result}")
+                return execution_result
+
+            except subprocess.TimeoutExpired:
+                message = (f"Code execution timed out after "
+                           f"{self.timeout} seconds")
+                logger.error(message)
+                return {
+                    "success": False,
+                    "stdout": message,
+                    "stderr": message,
+                    "return_code": -1,
+                }
+            except Exception as e:
+                message = f"Execution error:\n{str(e)}"
+                logger.error(message)
+                return {
+                    "success": False,
+                    "stdout": "",
+                    "stderr": message,
+                    "return_code": -1,
+                }
+            finally:
+                # Clean up temporary file
+                try:
+                    os.unlink(temp_file)
+                except Exception:
+                    pass
+
+        except Exception as e:
+            message = f"Failed to create temporary file: {str(e)}"
+            logger.error(message)
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": message,
+                "return_code": -1,
+            }
+
+
+def create_execution_agent():
+    return ExecutionAgent()
