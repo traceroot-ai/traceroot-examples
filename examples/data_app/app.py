@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from html_layout import create_layout
 
 import traceroot
+import numpy as np
 
 logger = traceroot.get_logger()
 
@@ -95,20 +96,35 @@ def generate_data() -> pd.DataFrame:
 @traceroot.trace()
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Remove null values from the DataFrame.
+    Clean and normalize the DataFrame.
 
-    Args:
-        df: Input DataFrame that may contain null values
-
-    Returns:
-        DataFrame with null values removed
+    - Coerce numeric columns to numbers
+    - Remove inf/-inf
+    - Enforce valid ranges and drop invalid rows
+    - Drop rows with nulls in critical fields after cleaning
     """
     logger.info(f"Starting preprocessing. Initial shape: {df.shape}")
-    # Remove rows with any null values
-    cleaned_df = df.dropna()
+
+    cleaned = df.copy()
+
+    # Coerce to numeric where possible (e.g., "0.9" -> 0.9; lists/dicts -> NaN)
+    for col in ['response_time', 'accuracy', 'tokens']:
+        cleaned[col] = pd.to_numeric(cleaned[col], errors='coerce')
+
+    # Replace +/- inf with NaN for consistent dropping
+    cleaned.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    # Enforce domain constraints; keep NaN for now to drop them uniformly below
+    cleaned = cleaned[(cleaned['response_time'].isna()) | (cleaned['response_time'] >= 0)]
+    cleaned = cleaned[(cleaned['tokens'].isna()) | (cleaned['tokens'] >= 0)]
+    cleaned = cleaned[(cleaned['accuracy'].isna()) | ((cleaned['accuracy'] >= 0) & (cleaned['accuracy'] <= 1))]
+
+    # Finally, drop rows that still have nulls in critical fields
+    cleaned_df = cleaned.dropna(subset=['response_time', 'accuracy', 'tokens'])
+
     logger.info(f"Preprocessing complete. Final shape: {cleaned_df.shape}")
     logger.info(
-        f"Removed {df.shape[0] - cleaned_df.shape[0]} rows with null values")
+        f"Removed {df.shape[0] - cleaned_df.shape[0]} rows with null or invalid values")
     return cleaned_df
 
 
@@ -119,9 +135,8 @@ def validate_data(df: pd.DataFrame) -> bool:
         logger.error("Found None/null values in dataset")
         errors_found = True
     for col in ['response_time', 'accuracy', 'tokens']:
-        non_numeric = df[col].apply(
-            lambda x: not isinstance(x, (int, float, type(None))))
-        if non_numeric.any():
+        # After preprocessing, columns should be numeric
+        if not pd.api.types.is_numeric_dtype(df[col]):
             logger.error(f"Found non-numeric values in {col} column")
             errors_found = True
             continue
@@ -200,9 +215,10 @@ def html_stats() -> dict[str, str]:
     header_height = 80
     padding = 20
     gap = 20
-    available_height = viewport_height - (header_height + 2 * padding)
-    chart_height = available_height - 100
-    card_width = -1
+
+    # Use a sane fixed chart height to avoid negative values from mixed-unit math
+    chart_height = 60  # in vh
+    card_width = 100   # in percent
     card_padding = 15
     border_radius = 12
     stats = {
