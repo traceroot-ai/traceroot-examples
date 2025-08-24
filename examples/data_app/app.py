@@ -8,6 +8,10 @@ from html_layout import create_layout
 
 import traceroot
 
+# New imports for robust preprocessing/validation
+import numpy as np
+import numbers
+
 logger = traceroot.get_logger()
 
 
@@ -95,20 +99,53 @@ def generate_data() -> pd.DataFrame:
 @traceroot.trace()
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Remove null values from the DataFrame.
+    Clean and coerce the dataset for plotting.
+
+    Steps:
+    - Coerce response_time, accuracy, tokens to numeric (non-coercible -> NaN)
+    - Replace +/-inf with NaN
+    - Drop rows with NaN in required numeric columns
+    - Remove invalid ranges (negative response_time/tokens, accuracy outside [0, 1])
 
     Args:
-        df: Input DataFrame that may contain null values
+        df: Input DataFrame that may contain nulls and invalid types/ranges
 
     Returns:
-        DataFrame with null values removed
+        DataFrame cleaned and ready for validation/plotting
     """
     logger.info(f"Starting preprocessing. Initial shape: {df.shape}")
-    # Remove rows with any null values
-    cleaned_df = df.dropna()
+    cleaned_df = df.copy()
+
+    # Coerce to numeric types
+    for col in ['response_time', 'accuracy', 'tokens']:
+        before_na = cleaned_df[col].isna().sum()
+        cleaned_df[col] = pd.to_numeric(cleaned_df[col], errors='coerce')
+        after_na = cleaned_df[col].isna().sum()
+        logger.info(f"Coercion -> {col}: NaNs before={before_na}, after={after_na}")
+
+    # Replace infinities with NA for all columns
+    cleaned_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    # Drop rows with any NA in the required numeric columns
+    before_dropna = cleaned_df.shape[0]
+    cleaned_df = cleaned_df.dropna(subset=['response_time', 'accuracy', 'tokens'])
+    dropped_na = before_dropna - cleaned_df.shape[0]
+    if dropped_na:
+        logger.info(f"Dropped {dropped_na} rows due to NA after coercion/inf filtering")
+
+    # Remove invalid ranges
+    invalid_resp = cleaned_df['response_time'] < 0
+    invalid_tokens = cleaned_df['tokens'] < 0
+    invalid_acc = (cleaned_df['accuracy'] < 0) | (cleaned_df['accuracy'] > 1)
+    removed_invalid_mask = invalid_resp | invalid_tokens | invalid_acc
+    removed_invalid = int(removed_invalid_mask.sum())
+    if removed_invalid:
+        logger.warning(f"Dropping {removed_invalid} rows with out-of-range values")
+        cleaned_df = cleaned_df.loc[~removed_invalid_mask]
+
     logger.info(f"Preprocessing complete. Final shape: {cleaned_df.shape}")
     logger.info(
-        f"Removed {df.shape[0] - cleaned_df.shape[0]} rows with null values")
+        f"Removed {df.shape[0] - cleaned_df.shape[0]} rows during preprocessing")
     return cleaned_df
 
 
@@ -119,8 +156,9 @@ def validate_data(df: pd.DataFrame) -> bool:
         logger.error("Found None/null values in dataset")
         errors_found = True
     for col in ['response_time', 'accuracy', 'tokens']:
+        # Correct numeric detection: handle numpy numeric types as well
         non_numeric = df[col].apply(
-            lambda x: not isinstance(x, (int, float, type(None))))
+            lambda x: not (x is None or isinstance(x, numbers.Number)))
         if non_numeric.any():
             logger.error(f"Found non-numeric values in {col} column")
             errors_found = True
@@ -202,7 +240,13 @@ def html_stats() -> dict[str, str]:
     gap = 20
     available_height = viewport_height - (header_height + 2 * padding)
     chart_height = available_height - 100
-    card_width = -1
+    # Fallback to a sane value if computed height is non-positive
+    if chart_height <= 0:
+        logger.warning(
+            f"Computed negative/zero chart_height ({chart_height}vh). Falling back to 60vh")
+        chart_height = 60
+    # Fix: valid width for two-card layout
+    card_width = 48
     card_padding = 15
     border_radius = 12
     stats = {
