@@ -2,6 +2,7 @@ from datetime import datetime
 
 import dash
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from html_layout import create_layout
@@ -95,55 +96,51 @@ def generate_data() -> pd.DataFrame:
 @traceroot.trace()
 def preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Remove null values from the DataFrame.
+    Clean and normalize the dataset so charts can render reliably.
 
-    Args:
-        df: Input DataFrame that may contain null values
-
-    Returns:
-        DataFrame with null values removed
+    - Coerce response_time, accuracy, tokens to numeric (invalid -> NaN)
+    - Replace +/- inf with NaN
+    - Enforce domain rules: response_time >= 0, tokens >= 0, 0 <= accuracy <= 1
+    - Drop rows with any invalid/NaN values after normalization
     """
     logger.info(f"Starting preprocessing. Initial shape: {df.shape}")
-    # Remove rows with any null values
-    cleaned_df = df.dropna()
+    cleaned = df.copy()
+
+    # Coerce to numeric, invalid entries become NaN
+    for col in ['response_time', 'accuracy', 'tokens']:
+        cleaned[col] = pd.to_numeric(cleaned[col], errors='coerce')
+
+    # Replace +/- inf with NaN
+    cleaned.replace([np.inf, -np.inf], pd.NA, inplace=True)
+
+    # Domain validations -> set invalid values to NaN for dropping later
+    if 'response_time' in cleaned:
+        cleaned.loc[cleaned['response_time'] < 0, 'response_time'] = pd.NA
+    if 'tokens' in cleaned:
+        cleaned.loc[cleaned['tokens'] < 0, 'tokens'] = pd.NA
+    if 'accuracy' in cleaned:
+        cleaned.loc[~cleaned['accuracy'].between(0, 1), 'accuracy'] = pd.NA
+
+    # Remove rows with any null values in key columns
+    before = cleaned.shape[0]
+    cleaned_df = cleaned.dropna(subset=['response_time', 'accuracy', 'tokens'])
+    removed = before - cleaned_df.shape[0]
+
     logger.info(f"Preprocessing complete. Final shape: {cleaned_df.shape}")
-    logger.info(
-        f"Removed {df.shape[0] - cleaned_df.shape[0]} rows with null values")
+    logger.info(f"Removed {removed} rows with invalid or null values")
     return cleaned_df
 
 
 @traceroot.trace()
 def validate_data(df: pd.DataFrame) -> bool:
-    errors_found = False
-    if df.isnull().any().any():
-        logger.error("Found None/null values in dataset")
-        errors_found = True
-    for col in ['response_time', 'accuracy', 'tokens']:
-        non_numeric = df[col].apply(
-            lambda x: not isinstance(x, (int, float, type(None))))
-        if non_numeric.any():
-            logger.error(f"Found non-numeric values in {col} column")
-            errors_found = True
-            continue
-        numeric_data = df[col].dropna()
-        if len(numeric_data) == 0:
-            logger.error(f"No numeric values found in {col} column")
-            errors_found = True
-            continue
-        if col == 'response_time' and (numeric_data < 0).any():
-            logger.error("Found negative values in response_time column")
-            errors_found = True
-        elif col == 'tokens' and (numeric_data < 0).any():
-            logger.error("Found negative values in tokens column")
-            errors_found = True
-        elif col == 'accuracy':
-            accuracy_invalid = (numeric_data < 0) | (numeric_data > 1)
-            if accuracy_invalid.any():
-                logger.error("Found accuracy values outside valid range (0-1)")
-                errors_found = True
-    if errors_found:
-        logger.error("Data preprocessing failed due to data quality issues")
-    return errors_found
+    """
+    Return True if there is a blocking issue preventing chart rendering.
+    Data is expected to be pre-cleaned by preprocess_data.
+    """
+    if df.empty:
+        logger.error("No valid rows available after preprocessing")
+        return True
+    return False
 
 
 @traceroot.trace()
@@ -151,9 +148,8 @@ def update_response_chart(df):
     processed_df = preprocess_data(df)
     errors_found = validate_data(processed_df)
     if errors_found:
-        logger.error("Cannot create response chart: data validation failed")
         return go.Figure().update_layout(
-            title="Response Times by Model - Data Validation Failed")
+            title="Response Times by Model - No Valid Data")
     if processed_df.empty:
         logger.error(
             "Cannot create response chart: no valid data after preprocessing")
@@ -171,9 +167,8 @@ def update_accuracy_chart(df):
     processed_df = preprocess_data(df)
     errors_found = validate_data(processed_df)
     if errors_found:
-        logger.error("Cannot create accuracy chart: data validation failed")
         return go.Figure().update_layout(
-            title="Model Accuracy Over Time - Data Validation Failed")
+            title="Model Accuracy Over Time - No Valid Data")
     if processed_df.empty:
         logger.error(
             "Cannot create accuracy chart: no valid data after preprocessing")
@@ -192,17 +187,16 @@ def update_accuracy_chart(df):
 def html_stats() -> dict[str, str]:
     """
     Calculate heights, widths, and other style values for the HTML layout.
-
-    Returns:
-        dict: Dictionary containing calculated style values
     """
     viewport_height = 100
     header_height = 80
     padding = 20
     gap = 20
-    available_height = viewport_height - (header_height + 2 * padding)
-    chart_height = available_height - 100
-    card_width = -1
+
+    # Use safe, positive sizes so two cards render side-by-side
+    chart_height = 60   # vh; avoid negative values from mixed units
+    card_width = 48     # percent: leaves ~4% for gap
+
     card_padding = 15
     border_radius = 12
     stats = {
